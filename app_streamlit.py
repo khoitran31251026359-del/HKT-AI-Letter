@@ -172,4 +172,8 @@ if predict_button:
             st.success(f"### HKT ĐOÁN NHA, ĐÂY LÀ CHỮ: **{letter}** (TỤI TUI TỰ TIN {confidence:.1f}%)")
             
             if confidence > 88:
-                st.info(f"💬 **NHẬN X
+                st.info(f"💬 **NHẬN XÉT CHỮ:** {random.choice(khen_list)}")
+            else:
+                st.warning(f"💬 **NHẬN XÉT CHỮ:** {random.choice(che_list)}")
+        else:
+            st.error("THỬ VIẾT GÌ ĐI BỒ ƠI, XONG ẤN NÚT ĐỂ HKT ĐOÁN NHE! 😤")
