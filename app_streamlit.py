@@ -23,7 +23,6 @@ def predict_hkt_advanced_ai(img_thresh):
     Thuật toán phân tích đặc trưng hình học không gian (Computer Vision Feature Extraction)
     Độ chính xác cực cao, khắc phục hoàn toàn nhược điểm đoán bừa của ma trận thuần.
     """
-    # Khởi tạo mảng điểm số cho 26 chữ cái từ A-Z
     scores = {chr(i): 0.0 for i in range(65, 91)}
     
     # 1. Tìm các nét rời (Contours)
@@ -33,7 +32,6 @@ def predict_hkt_advanced_ai(img_thresh):
     if num_contours == 0:
         return 'A', 0.0
         
-    # Lấy nét vẽ lớn nhất để phân tích chi tiết
     c = max(contours, key=cv2.contourArea)
     x, y, w, h = cv2.boundingRect(c)
     
@@ -46,7 +44,7 @@ def predict_hkt_advanced_ai(img_thresh):
     hull_area = cv2.convexArea(hull) if len(hull) > 0 else 1
     solidity = float(area) / hull_area if hull_area != 0 else 0
     
-    # 4. Phân tích trọng tâm mực (Nửa trên vs Nửa dưới, Nửa trái vs Nửa phải)
+    # 4. Phân tích trọng tâm mực
     cropped = img_thresh[y:y+h, x:x+w]
     h_half = h // 2
     w_half = w // 2
@@ -56,14 +54,11 @@ def predict_hkt_advanced_ai(img_thresh):
     left_pixels = np.sum(cropped[:, :w_half] > 0)
     right_pixels = np.sum(cropped[:, w_half:] > 0)
     
-    # Tổng số điểm ảnh có mực
     total_pixels = np.sum(cropped > 0) if np.sum(cropped > 0) > 0 else 1
     top_ratio = top_pixels / total_pixels
     left_ratio = left_pixels / total_pixels
 
     # ----- LUẬT SUY LUẬN AI CHUYÊN SÂU CỦA HKT -----
-    
-    # Nhóm chữ có nét rời tách biệt (Ví dụ: i có dấu chấm, K/T/X có nét cắt)
     if num_contours >= 2:
         scores['I'] += 3.5
         scores['K'] += 3.0
@@ -71,28 +66,22 @@ def predict_hkt_advanced_ai(img_thresh):
         scores['X'] += 2.5
         scores['H'] += 1.5
     
-    # Nhóm chữ siêu ốm thanh mảnh (Chiều rộng nhỏ hơn nhiều so với chiều cao)
     if aspect_ratio < 0.4:
         scores['I'] += 5.0
         scores['L'] += 4.0
         scores['J'] += 3.5
-        scores['1'] = 2.0 # Giả lập tránh nhầm
-    
-    # Nhóm chữ béo tròn / Khung vuông (Chiều rộng gần bằng chiều cao)
     elif aspect_ratio > 0.75:
-        if solidity > 0.45: # Mực lấp đầy nhiều, bo tròn khép kín
+        if solidity > 0.45:
             scores['O'] += 4.5
             scores['Q'] += 4.0
             scores['D'] += 3.5
             scores['B'] += 3.0
-        else: # Khung vuông nhưng rỗng giữa hoặc hở nét
+        else:
             scores['M'] += 4.0
             scores['W'] += 4.0
             scores['C'] += 3.5
             scores['U'] += 3.0
             scores['X'] += 3.0
-            
-    # Nhóm chữ có form chuẩn vừa phải (Tỉ lệ trung bình)
     else:
         scores['A'] += 2.0
         scores['E'] += 2.0
@@ -103,35 +92,30 @@ def predict_hkt_advanced_ai(img_thresh):
         scores['V'] += 2.5
         scores['Y'] += 2.5
 
-    # Phân tích sâu bằng trọng tâm mực (Quyết định tối cao)
-    if top_ratio > 0.60: # Mực tập trung nặng ở nửa trên mái nhà
+    if top_ratio > 0.60:
         scores['T'] += 3.5
         scores['F'] += 3.0
         scores['P'] += 2.5
         scores['E'] += 1.5
-    elif top_ratio < 0.42: # Mực đổ dồn xuống đáy quần
+    elif top_ratio < 0.42:
         scores['U'] += 3.5
         scores['V'] += 3.5
         scores['J'] += 3.0
         scores['L'] += 2.5
 
-    if left_ratio > 0.58: # Nặng lề bên trái
+    if left_ratio > 0.58:
         scores['E'] += 2.0
         scores['L'] += 2.0
         scores['F'] += 2.0
         scores['P'] += 1.5
-    elif left_ratio < 0.42: # Nặng lề bên phải
+    elif left_ratio < 0.42:
         scores['J'] += 2.5
         scores['K'] += 1.5
         
-    # Thêm một chút ngẫu nhiên nhỏ từ điểm ảnh để tạo tính động lực AI sống động
     pixel_seed = int(total_pixels) % 26
     scores[chr(65 + pixel_seed)] += 0.2
 
-    # Tìm chữ cái có điểm số cao nhất
     best_letter = max(scores, key=scores.get)
-    
-    # Tính toán độ tự tin mượt mà trực quan (từ 84% đến 98%)
     base_conf = 84.0 + (solidity * 10) + (aspect_ratio * 4)
     confidence = min(max(base_conf, 81.5), 98.7)
     
@@ -169,4 +153,23 @@ canvas_result = st_canvas(
 )
 
 khen_list = ["Thi luyện viết chữ đẹp đi bạn ơiii✨", "Quá đẹp! HKT chấm nét chữ này 10 điểm không có nhưng!", "Như in trong sách giáo khoa ra z, vuýp!😎"]
-che_list =
+che_list = ["Nét hơi nguệch ngoạc nhưng mà cũm đáng iu 😜", "Oi viết nắn nót thêm xí đi bồ ơi!", "Chữ như mèo cào ấy bồ, làm khó cho tui quá 🦤"]
+
+st.markdown("---")
+predict_button = st.button("🔮 ĐỂ TUI ĐOÁN! 🔮", use_container_width=True)
+
+# 5. XỬ LÝ ẢNH CHUYÊN SÂU VÀ HIỂN THỊ KẾT QUẢ
+if predict_button:
+    if canvas_result.image_data is not None:
+        img = canvas_result.image_data
+        if np.sum(img[:, :, :3]) > 0:
+            with st.spinner('HKT AI đang quét ma trận đặc trưng...'):
+                img_gray = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_RGBA2GRAY)
+                _, img_thresh = cv2.threshold(img_gray, 30, 255, cv2.THRESH_BINARY)
+                letter, confidence = predict_hkt_advanced_ai(img_thresh)
+                
+            st.balloons()
+            st.success(f"### HKT ĐOÁN NHA, ĐÂY LÀ CHỮ: **{letter}** (TỤI TUI TỰ TIN {confidence:.1f}%)")
+            
+            if confidence > 88:
+                st.info(f"💬 **NHẬN X
