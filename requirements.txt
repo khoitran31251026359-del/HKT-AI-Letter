@@ -1,7 +1,7 @@
 streamlit
 streamlit-drawable-canvas
-tensorflow
+tensorflow==2.15.0
 tensorflow-datasets
-numpy
+numpy<2.0.0
 opencv-python-headless
 Pillow
