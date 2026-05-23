@@ -41,7 +41,8 @@ def predict_hkt_advanced_ai(img_thresh):
     # 3. Mật độ lấp đầy mực (Solidity)
     area = cv2.contourArea(c)
     hull = cv2.convexHull(c)
-    hull_area = cv2.convexArea(hull) if len(hull) > 0 else 1
+    # SỬA LỖI TẠI ĐÂY: Dùng cv2.contourArea cho hull thay vì cv2.convexArea
+    hull_area = cv2.contourArea(hull) if len(hull) > 0 else 1
     solidity = float(area) / hull_area if hull_area != 0 else 0
     
     # 4. Phân tích trọng tâm mực
@@ -172,7 +173,7 @@ if predict_button:
             st.success(f"### HKT ĐOÁN NHA, ĐÂY LÀ CHỮ: **{letter}** (TỤI TUI TỰ TIN {confidence:.1f}%)")
             
             if confidence > 88:
-                st.info(f"💬 **NHẬN XÉT CHỮ:** {random.choice(khen_list)}")
+                st.info(f"💬 **NHẬN XÈT CHỮ:** {random.choice(khen_list)}")
             else:
                 st.warning(f"💬 **NHẬN XÉT CHỮ:** {random.choice(che_list)}")
         else:
