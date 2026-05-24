@@ -6,9 +6,8 @@ import random
 import tensorflow as tf
 from tensorflow.keras import layers, models
 
-# 1. CẤU HÌNH GIAO DIỆN APP HKT
-st.set_page_config(page_title="HKT Recognition Pro", layout="centered")
 
+st.set_page_config(page_title="HKT Recognition Pro", layout="centered")
 st.markdown("""
     <style>
     .main-title { font-size: 36px; font-weight: bold; color: #00DBDE; text-align: center; margin-bottom: 5px; }
@@ -19,7 +18,6 @@ st.markdown("""
 st.markdown('<div class="main-title">🔥 HKT RECOGNITION PRO 🔥</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">Phiên bản ANN tối ưu hóa ma trận - Đạt độ chính xác tối đa của nhóm HKT</div>', unsafe_allow_html=True)
 
-# 2. KHỞI TẠO MẠNG ANN PHẲNG (TĂNG CƯỜNG DỮ LIỆU NGHIÊNG ĐỂ TĂNG ĐỘ CHÍNH XÁC)
 @st.cache_resource
 def load_optimized_ann():
     x_train = []
@@ -31,12 +29,11 @@ def load_optimized_ann():
             for thickness in [1, 2, 3]:
                 for dx in [-3, 0, 3]:
                     for dy in [-3, 0, 3]:
-                        # Tạo ảnh chữ cái cơ bản
+
                         blank = np.zeros((50, 50), dtype=np.uint8)
                         cv2.putText(blank, letter, (13 + dx, 35 + dy), 
                                     cv2.FONT_HERSHEY_SIMPLEX, font_scale, 255, thickness)
                         
-                        # TĂNG CƯỜNG DỮ LIỆU: Tạo thêm các biến thể xoay nghiêng chữ (Xoay góc -15, 0, 15 độ)
                         for angle in [-15, 0, 15]:
                             if angle != 0:
                                 M = cv2.getRotationMatrix2D((25, 25), angle, 1.0)
@@ -59,7 +56,6 @@ def load_optimized_ann():
     x_train = np.array(x_train).astype('float32') / 255.0
     y_train = np.array(y_train)
     
-    # Mạng ANN phẳng thuần chủng (Gồm các lớp Dense xếp chồng và duỗi phẳng ma trận)
     model = models.Sequential([
         layers.Dense(512, activation='relu', input_shape=(784,)),
         layers.Dropout(0.2),
@@ -73,14 +69,12 @@ def load_optimized_ann():
                   loss='sparse_categorical_crossentropy',
                   metrics=['accuracy'])
                   
-    # Huấn luyện ANN qua 25 Epoch với dữ liệu chữ viết tay giả lập đã có góc nghiêng
     model.fit(x_train, y_train, epochs=25, batch_size=128, shuffle=True, verbose=0)
     return model
 
 with st.spinner('🧙‍♂️ HKT đang huấn luyện mạng Deep ANN siêu cấp, đợi tí nhé...'):
     model = load_optimized_ann()
 
-# 3. THANH CÔNG CỤ SIDEBAR
 st.sidebar.header("🛠️ CÔNG CỤ HKT ANN PRO")
 tool_mode = st.sidebar.radio("Chọn chế độ:", ("Bút vẽ ✏️", "Gôm tẩy 🧽"))
 
@@ -96,7 +90,6 @@ else:
 st.sidebar.markdown("---")
 st.sidebar.success("HKT cảm ơn mọi người đã ghé qua :3")
 
-# 4. MÀN HÌNH CHÍNH
 st.markdown("✍️ **Thử viết chữ cái vào đây xem nào:**")
 
 canvas_result = st_canvas(
@@ -117,7 +110,6 @@ che_list = ["Nét hơi nguệch ngoạc nhưng mà cũm đáng iu 😜", "Oi vi�
 st.markdown("---")
 predict_button = st.button("🔮 ĐỂ TUI ĐOÁN! 🔮", use_container_width=True)
 
-# 5. XỬ LÝ ẢNH VÀ DỰ ĐOÁN CHÍNH XÁC QUA MẠNG ANN PHẲNG
 if predict_button:
     if canvas_result.image_data is not None:
         img = canvas_result.image_data
@@ -136,8 +128,7 @@ if predict_button:
 
                 _, img_thresh = cv2.threshold(img_gray, 30, 255, cv2.THRESH_BINARY)
                 img_resized = cv2.resize(img_thresh, (28, 28))
-                
-                # Duỗi phẳng ma trận về vector kích thước (1, 784) cho tầng đầu vào của ANN
+
                 img_ready = img_resized.reshape((1, 784)).astype('float32') / 255.0
                 
                 preds = model.predict(img_ready)
