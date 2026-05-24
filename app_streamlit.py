@@ -3,6 +3,7 @@ from streamlit_drawable_canvas import st_canvas
 import numpy as np
 import cv2
 import random
+from sklearn.neighbors import KNeighborsClassifier
 
 # 1. CẤU HÌNH GIAO DIỆN APP HKT
 st.set_page_config(page_title="HKT Recognition Pro", layout="centered")
@@ -15,121 +16,61 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="main-title">🔥 HKT RECOGNITION PRO 🔥</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">Phiên bản ANN tối ưu hóa ma trận - Đạt độ chính xác tối đa của nhóm HKT</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Phiên bản Học Máy (Machine Learning) Thực Sự - Không chơi hệ If-Else nữa!</div>', unsafe_allow_html=True)
 
-# 2. BỘ NÃO TRÍ TUỆ NHÂN TẠO HÌNH HỌC (SIÊU THÔNG MINH - KHÔNG CẦN TENSORFLOW)
-def predict_hkt_advanced_ai(img_thresh):
+# 2. KHỞI TẠO BỘ NÃO MACHINE LEARNING (TRAIN DATA)
+@st.cache_resource
+def train_hkt_brain():
     """
-    Thuật toán phân tích đặc trưng hình học không gian (Computer Vision Feature Extraction)
-    Độ chính xác cực cao, khắc phục hoàn toàn nhược điểm đoán bừa của ma trận thuần.
+    Hàm này tạo dữ liệu mẫu giả lập cho 26 chữ cái (A-Z) dựa trên font chữ chuẩn 
+    để làm tập dữ liệu Train ban đầu cho thuật toán KNN.
     """
-    scores = {chr(i): 0.0 for i in range(65, 91)}
+    X_train = []
+    y_train = []
     
-    # 1. Tìm các nét rời (Contours)
-    contours, _ = cv2.findContours(img_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    num_contours = len(contours)
-    
-    if num_contours == 0:
-        return 'A', 0.0
-        
-    c = max(contours, key=cv2.contourArea)
-    x, y, w, h = cv2.boundingRect(c)
-    
-    # 2. Tỉ lệ khung hình (Dài / Rộng)
-    aspect_ratio = float(w) / h if h != 0 else 1
-    
-    # 3. Mật độ lấp đầy mực (Solidity)
-    area = cv2.contourArea(c)
-    hull = cv2.convexHull(c)
-    # SỬA LỖI TẠI ĐÂY: Dùng cv2.contourArea cho hull thay vì cv2.convexArea
-    hull_area = cv2.contourArea(hull) if len(hull) > 0 else 1
-    solidity = float(area) / hull_area if hull_area != 0 else 0
-    
-    # 4. Phân tích trọng tâm mực
-    cropped = img_thresh[y:y+h, x:x+w]
-    h_half = h // 2
-    w_half = w // 2
-    
-    top_pixels = np.sum(cropped[:h_half, :] > 0)
-    bottom_pixels = np.sum(cropped[h_half:, :] > 0)
-    left_pixels = np.sum(cropped[:, :w_half] > 0)
-    right_pixels = np.sum(cropped[:, w_half:] > 0)
-    
-    total_pixels = np.sum(cropped > 0) if np.sum(cropped > 0) > 0 else 1
-    top_ratio = top_pixels / total_pixels
-    left_ratio = left_pixels / total_pixels
+    # Tạo các biến thể của chữ cái từ A đến Z bằng cách vẽ font chữ của OpenCV
+    # Kết hợp dịch chuyển, phóng to, thu nhỏ để AI học được nhiều dáng chữ
+    for i in range(65, 91):
+        letter = chr(i)
+        for font_scale in [0.6, 0.8, 1.0, 1.2]:
+            for thickness in [1, 2, 3]:
+                for dx in [-3, 0, 3]:
+                    for dy in [-3, 0, 3]:
+                        # Tạo ảnh nền đen kích thước 50x50
+                        blank = np.zeros((50, 50), dtype=np.uint8)
+                        # Vẽ chữ lên ảnh
+                        cv2.putText(blank, letter, (13 + dx, 35 + dy), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, font_scale, 255, thickness)
+                        # Cắt vùng chứa chữ và resize về chuẩn 28x28 pixel
+                        contours, _ = cv2.findContours(blank, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                        if len(contours) > 0:
+                            c = max(contours, key=cv2.contourArea)
+                            x, y, w, h = cv2.boundingRect(c)
+                            cropped = blank[y:y+h, x:x+w]
+                            resized = cv2.resize(cropped, (28, 28))
+                        else:
+                            resized = cv2.resize(blank, (28, 28))
+                        
+                        # Làm phẳng ma trận 28x28 thành mảng 1 chiều 784 phần tử
+                        X_train.append(resized.flatten())
+                        y_train.append(letter)
+                        
+    # Huấn luyện mô hình KNN (K-Nearest Neighbors)
+    knn = KNeighborsClassifier(n_neighbors=3)
+    knn.fit(X_train, y_train)
+    return knn
 
-    # ----- LUẬT SUY LUẬN AI CHUYÊN SÂU CỦA HKT -----
-    if num_contours >= 2:
-        scores['I'] += 3.5
-        scores['K'] += 3.0
-        scores['T'] += 2.8
-        scores['X'] += 2.5
-        scores['H'] += 1.5
-    
-    if aspect_ratio < 0.4:
-        scores['I'] += 5.0
-        scores['L'] += 4.0
-        scores['J'] += 3.5
-    elif aspect_ratio > 0.75:
-        if solidity > 0.45:
-            scores['O'] += 4.5
-            scores['Q'] += 4.0
-            scores['D'] += 3.5
-            scores['B'] += 3.0
-        else:
-            scores['M'] += 4.0
-            scores['W'] += 4.0
-            scores['C'] += 3.5
-            scores['U'] += 3.0
-            scores['X'] += 3.0
-    else:
-        scores['A'] += 2.0
-        scores['E'] += 2.0
-        scores['F'] += 2.0
-        scores['R'] += 2.0
-        scores['P'] += 2.0
-        scores['S'] += 2.0
-        scores['V'] += 2.5
-        scores['Y'] += 2.5
+# Gọi hàm train não bộ ngay khi bật app (chỉ chạy 1 lần duy nhất nhờ @st.cache_resource)
+hkt_brain = train_hkt_brain()
 
-    if top_ratio > 0.60:
-        scores['T'] += 3.5
-        scores['F'] += 3.0
-        scores['P'] += 2.5
-        scores['E'] += 1.5
-    elif top_ratio < 0.42:
-        scores['U'] += 3.5
-        scores['V'] += 3.5
-        scores['J'] += 3.0
-        scores['L'] += 2.5
-
-    if left_ratio > 0.58:
-        scores['E'] += 2.0
-        scores['L'] += 2.0
-        scores['F'] += 2.0
-        scores['P'] += 1.5
-    elif left_ratio < 0.42:
-        scores['J'] += 2.5
-        scores['K'] += 1.5
-        
-    pixel_seed = int(total_pixels) % 26
-    scores[chr(65 + pixel_seed)] += 0.2
-
-    best_letter = max(scores, key=scores.get)
-    base_conf = 84.0 + (solidity * 10) + (aspect_ratio * 4)
-    confidence = min(max(base_conf, 81.5), 98.7)
-    
-    return best_letter, confidence
-
-# 3. THANH CÔNG CỤ SIDEBAR
+# 3. THÀNH CÔNG CỤ SIDEBAR
 st.sidebar.header("🛠️ CÔNG CỤ HKT ANN PRO")
 tool_mode = st.sidebar.radio("Chọn chế độ:", ("Bút vẽ ✏️", "Gôm tẩy 🧽"))
 
 drawing_mode = "freedraw"
 
 if tool_mode == "Bút vẽ ✏️":
-    stroke_width = st.sidebar.slider("Độ đậm nét vẽ:", min_value=5, max_value=40, value=22, step=1)
+    stroke_width = st.sidebar.slider("Độ đậm nét vẽ:", min_value=5, max_value=40, value=20, step=1)
     stroke_color = "#FFFFFF" 
 else:
     stroke_width = st.sidebar.slider("Kích thước gôm tẩy:", min_value=10, max_value=60, value=35, step=1)
@@ -139,42 +80,73 @@ st.sidebar.markdown("---")
 st.sidebar.success("HKT cảm ơn mọi người đã ghé qua :3")
 
 # 4. MÀN HÌNH CHÍNH
-st.markdown("✍️ **Thử viết chữ cái vào đây xem nào:**")
+st.markdown("✍️ **Thử viết MỘT CHỮ CÁI IN HOA (A-Z) vào giữa khung xem nào:**")
 
 canvas_result = st_canvas(
     fill_color="rgba(255, 255, 255, 1)",  
     stroke_width=stroke_width,
     stroke_color=stroke_color, 
     background_color="rgba(0, 0, 0, 1)", 
-    height=320,
-    width=320,
+    height=280,
+    width=280,
     drawing_mode=drawing_mode,
     update_streamlit=True,
     key="hkt_ann_pro_canvas",
 )
 
 khen_list = ["Thi luyện viết chữ đẹp đi bạn ơiii✨", "Quá đẹp! HKT chấm nét chữ này 10 điểm không có nhưng!", "Như in trong sách giáo khoa ra z, vuýp!😎"]
-che_list = ["Nét hơi nguệch ngoạc nhưng mà cũm đáng iu 😜", "Oi viết nắn nót thêm xí đi bồ ơi!", "Chữ như mèo cào ấy bồ, làm khó cho tui quá 🦤"]
+che_list = ["Nét hơi nguệch ngoạc nhưng mà cũng đáng iu 😜", "Ôi viết nắn nót thêm xí đi bồ ơi!", "Chữ như mèo cào ấy bồ, làm khó cho tui quá 🦤"]
 
 st.markdown("---")
 predict_button = st.button("🔮 ĐỂ TUI ĐOÁN! 🔮", use_container_width=True)
 
-# 5. XỬ LÝ ẢNH CHUYÊN SÂU VÀ HIỂN THỊ KẾT QUẢ
+# 5. TRÍ TRUỆ NHÂN TẠO QUÉT MA TRẬN ẢNH VÀ DỰ ĐOÁN
 if predict_button:
     if canvas_result.image_data is not None:
         img = canvas_result.image_data
+        # Kiểm tra xem người dùng có vẽ gì không
         if np.sum(img[:, :, :3]) > 0:
-            with st.spinner('HKT AI đang quét ma trận đặc trưng...'):
+            with st.spinner('HKT AI đang trích xuất ma trận điểm ảnh...'):
+                # Chuyển về ảnh xám và nhị phân hóa
                 img_gray = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_RGBA2GRAY)
                 _, img_thresh = cv2.threshold(img_gray, 30, 255, cv2.THRESH_BINARY)
-                letter, confidence = predict_hkt_advanced_ai(img_thresh)
                 
-            st.balloons()
-            st.success(f"### HKT ĐOÁN NHA, ĐÂY LÀ CHỮ: **{letter}** (TỤI TUI TỰ TIN {confidence:.1f}%)")
-            
-            if confidence > 88:
-                st.info(f"💬 **NHẬN XÈT CHỮ:** {random.choice(khen_list)}")
-            else:
-                st.warning(f"💬 **NHẬN XÉT CHỮ:** {random.choice(che_list)}")
+                # Tìm bounding box để cắt sát chữ (loại bỏ khoảng trắng thừa xung quanh)
+                contours, _ = cv2.findContours(img_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                if len(contours) > 0:
+                    c = max(contours, key=cv2.contourArea)
+                    x, y, w, h = cv2.boundingRect(c)
+                    
+                    # Cắt lấy vùng chữ
+                    cropped = img_thresh[y:y+h, x:x+w]
+                    
+                    # Thêm viền đệm (padding) để chữ không bị sát mép quá
+                    pad = 4
+                    cropped_padded = cv2.copyMakeBorder(cropped, pad, pad, pad, pad, cv2.BORDER_CONSTANT, value=0)
+                    
+                    # CỰC KỲ QUAN TRỌNG: Đưa ảnh về kích thước ma trận 28x28 tương thích với bộ não đã học
+                    img_resized = cv2.resize(cropped_padded, (28, 28))
+                    
+                    # Làm phẳng ma trận ảnh (Flatting) từ 28x28 -> mảng 1 chiều 784 phần tử
+                    input_features = img_resized.flatten().reshape(1, -1)
+                    
+                    # Tiến hành dự đoán bằng mô hình ML thực thụ
+                    letter_predicted = hkt_brain.predict(input_features)[0]
+                    
+                    # Tính toán "độ tự tin" giả lập dựa trên tỷ lệ phiếu bầu của KNN
+                    prob = hkt_brain.predict_proba(input_features)
+                    max_prob = np.max(prob)
+                    confidence = 75.0 + (max_prob * 23.7) # Scale về khoảng 75% - 98.7% cho vui tươi
+                    
+                    # Hiển thị kết quả công phá
+                    st.balloons()
+                    st.success(f"### HKT ĐOÁN NHA, ĐÂY LÀ CHỮ: **{letter_predicted}** (TỤI TUI TỰ TIN {confidence:.1f}%)")
+                    
+                    if confidence > 88:
+                        st.info(f"💬 **NHẬN XÉT CHỮ:** {random.choice(khen_list)}")
+                    else:
+                        st.warning(f"💬 **NHẬN XÉT CHỮ:** {random.choice(che_list)}")
+                else:
+                    st.error("Lỗi xử lý hình ảnh, thử viết lại rõ hơn bồ ơi!")
         else:
             st.error("THỬ VIẾT GÌ ĐI BỒ ƠI, XONG ẤN NÚT ĐỂ HKT ĐOÁN NHE! 😤")
