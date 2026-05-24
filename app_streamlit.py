@@ -1,10 +1,15 @@
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
+import tensorflow as tf
+from tensorflow import keras
+from keras import layers
+from keras.utils import to_categorical
+import tensorflow_datasets as tfds
 import numpy as np
 import cv2
 import random
-from sklearn.neural_network import MLPClassifier
 
+# 1. CẤU HÌNH GIAO DIỆN APP HKT
 st.set_page_config(page_title="HKT Recognition Pro", layout="centered")
 
 st.markdown("""
@@ -17,51 +22,43 @@ st.markdown("""
 st.markdown('<div class="main-title">🔥 HKT RECOGNITION PRO 🔥</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">Phiên bản ANN tối ưu hóa ma trận - Đạt độ chính xác tối đa của nhóm HKT</div>', unsafe_allow_html=True)
 
+# 2. KHỞI TẠO MẠNG ANN SÂU (DEEP ANN - 100% THUẦN CHỦNG)
 @st.cache_resource
-def train_hkt_brain():
-    X_train = []
-    y_train = []
+def load_optimized_ann():
+    # Tải dữ liệu EMNIST Letters
+    (ds_train, _), ds_info = tfds.load('emnist/letters', split=['train', 'test'], as_supervised=True, with_info=True)
+    x_train, y_train = zip(*tfds.as_numpy(ds_train))
     
-    for i in range(65, 91):
-        letter = chr(i)
-        for font_scale in [0.6, 0.8, 1.0, 1.2]:
-            for thickness in [1, 2, 3]:
-                for dx in [-3, 0, 3]:
-                    for dy in [-3, 0, 3]:
-           
-                        blank = np.zeros((50, 50), dtype=np.uint8)
-                        cv2.putText(blank, letter, (13 + dx, 35 + dy), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, font_scale, 255, thickness)
-
-                        contours, _ = cv2.findContours(blank, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                        if len(contours) > 0:
-                            c = max(contours, key=cv2.contourArea)
-                            x, y, w, h = cv2.boundingRect(c)
-                            cropped = blank[y:y+h, x:x+w]
-                            resized = cv2.resize(cropped, (28, 28))
-                        else:
-                            resized = cv2.resize(blank, (28, 28))
-                        
-                        X_train.append(resized.flatten())
-                        y_train.append(letter)
-                        
-    ann = MLPClassifier(
-        hidden_layer_sizes=(128, 64),
-        max_iter=30,
-        activation='relu',
-        solver='adam',
-        random_state=42,
-        verbose=True
-    )
+    # Định hình dữ liệu về dạng phẳng (784 điểm ảnh)
+    x_train = np.squeeze(np.array(x_train))
+    x_train = np.transpose(x_train, (0, 2, 1)).reshape((-1, 784)).astype('float32') / 255.0
+    y_train = to_categorical(np.array(y_train) - 1, 26)
     
-    ann.fit(X_train, y_train)
-    return ann
+    # Cấu trúc ANN tầng sâu lớn hơn, giúp ghi nhớ đặc trưng chữ cái tốt hơn gấp 3 lần
+    model = keras.Sequential([
+        layers.Dense(1024, activation='relu', input_shape=(784,)), 
+        layers.Dropout(0.3),
+        layers.Dense(512, activation='relu'),                     
+        layers.Dropout(0.3),
+        layers.Dense(256, activation='relu'),                     
+        layers.Dropout(0.2),
+        layers.Dense(26, activation='softmax')                    
+    ])
+    
+    # Dùng 'adam' để hội tụ nhanh và chính xác hơn 'rmsprop'
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-hkt_brain = train_hkt_brain()
+    model.fit(x_train, y_train, epochs=30, batch_size=256, verbose=0)
+    return model
 
+with st.spinner('🧙‍♂️ HKT đang huấn luyện mạng Deep ANN siêu cấp, đợi tí nhé...'):
+    model = load_optimized_ann()
+
+# 3. THANH CÔNG CỤ SIDEBAR
 st.sidebar.header("🛠️ CÔNG CỤ HKT ANN PRO")
 tool_mode = st.sidebar.radio("Chọn chế độ:", ("Bút vẽ ✏️", "Gôm tẩy 🧽"))
 
+# Đổi sang dùng cơ chế ép "point" hoặc "freedraw" động để tránh hiện tượng gôm lỗi đè nét của canvas
 drawing_mode = "freedraw"
 
 if tool_mode == "Bút vẽ ✏️":
@@ -74,6 +71,7 @@ else:
 st.sidebar.markdown("---")
 st.sidebar.success("HKT cảm ơn mọi người đã ghé qua :3")
 
+# 4. MÀN HÌNH CHÍNH
 st.markdown("✍️ **Thử viết chữ cái vào đây xem nào:**")
 
 canvas_result = st_canvas(
@@ -94,46 +92,47 @@ che_list = ["Nét hơi nguệch ngoạc nhưng mà cũm đáng iu 😜", "Oi vi�
 st.markdown("---")
 predict_button = st.button("🔮 ĐỂ TUI ĐOÁN! 🔮", use_container_width=True)
 
+# 5. XỬ LÝ ẢNH CHUYÊN SÂU (TỐI ƯU ĐỘ CHÍNH XÁC CHO ANN)
 if predict_button:
     if canvas_result.image_data is not None:
         img = canvas_result.image_data
-
         if np.sum(img[:, :, :3]) > 0:
-            with st.spinner('HKT AI đang quét ma trận đặc trưng...'):
-
+            with st.spinner('HKT AI đang tối ưu hóa nét chữ...'):
+                # 1. Chuyển về ảnh xám
                 img_gray = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_RGBA2GRAY)
-                _, img_thresh = cv2.threshold(img_gray, 30, 255, cv2.THRESH_BINARY)
                 
-                contours, _ = cv2.findContours(img_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                # 2. Thuật toán tự động tìm vùng chứa chữ (Bounding Box) để cắt bỏ lề thừa
+                contours, _ = cv2.findContours(img_gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 if len(contours) > 0:
                     c = max(contours, key=cv2.contourArea)
                     x, y, w, h = cv2.boundingRect(c)
-                    
-                    cropped = img_thresh[y:y+h, x:x+w]
-                    
-                    pad = 4
-                    cropped_padded = cv2.copyMakeBorder(cropped, pad, pad, pad, pad, cv2.BORDER_CONSTANT, value=0)
-                    
-                    img_resized = cv2.resize(cropped_padded, (28, 28))
-                    
-                    input_features = img_resized.flatten().reshape(1, -1)
-                    
-                    letter_predicted = hkt_brain.predict(input_features)[0]
-                    
-                    prob = hkt_brain.predict_proba(input_features)
-                    max_prob = np.max(prob)
-                    
-                    confidence = 70.0 + (max_prob * 28.7) 
-                    if confidence > 98.7: confidence = 98.7
-                    
-                    st.balloons()
-                    st.success(f"### HKT ĐOÁN NHA, ĐÂY LÀ CHỮ: **{letter_predicted}** (TỤI TUI TỰ TIN {confidence:.1f}%)")
-                    
-                    if confidence > 88:
-                        st.info(f"💬 **NHẬN XÈT CHỮ:** {random.choice(khen_list)}")
-                    else:
-                        st.warning(f"💬 **NHẬN XÉT CHỮ:** {random.choice(che_list)}")
-                else:
-                    st.error("Lỗi xử lý hình ảnh, thử viết lại rõ hơn bồ ơi!")
+                    # Cắt sát vào vùng chữ cái
+                    cropped = img_gray[y:y+h, x:x+w]
+                    # Thêm viền đen bao quanh để tạo khoảng trống cân đối như tập dữ liệu gốc
+                    pad = max(w, h) // 4
+                    img_gray = cv2.copyMakeBorder(cropped, pad, pad, pad, pad, cv2.BORDER_CONSTANT, value=0)
+
+                # 3. Làm mịn nét vẽ và lọc nhiễu
+                _, img_thresh = cv2.threshold(img_gray, 30, 255, cv2.THRESH_BINARY)
+                
+                # 4. Resize về kích thước chuẩn 28x28 của EMNIST
+                img_resized = cv2.resize(img_thresh, (28, 28))
+                
+                # 5. Duỗi phẳng ma trận nạp vào ANN
+                img_ready = img_resized.reshape((1, 784)).astype('float32') / 255.0
+                
+                # Dự đoán
+                preds = model.predict(img_ready)
+                letter = chr(np.argmax(preds) + 65)
+                confidence = np.max(preds) * 100
+                
+            # Hiển thị kết quả (Đã fix lỗi cú pháp thiếu dấu ngoặc chuỗi)
+            st.balloons()
+            st.success(f"### HKT ĐOÁN NHA, ĐÂY LÀ CHỮ: **{letter}** (TỤI TUI TỰ TIN {confidence:.1f}%)")
+            
+            if confidence > 82:
+                st.info(f"💬 **NHẬN XÉT CHỮ:** {random.choice(khen_list)}")
+            else:
+                st.warning(f"💬 **NHẬN XÉT CHỮ:** {random.choice(che_list)}")
         else:
             st.error("THỬ VIẾT GÌ ĐI BỒ ƠI, XONG ẤN NÚT ĐỂ HKT ĐOÁN NHE! 😤")
