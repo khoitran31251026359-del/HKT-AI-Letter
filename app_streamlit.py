@@ -15,7 +15,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="main-title">🔥 HKT RECOGNITION PRO 🔥</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">Phiên bản Mạng Nơ-ron Nhân Tạo (ANN) - Học sâu từng nét vẽ qua các Epoch</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Phiên bản ANN tối ưu hóa ma trận - Đạt độ chính xác tối đa của nhóm HKT</div>', unsafe_allow_html=True)
 
 @st.cache_resource
 def train_hkt_brain():
@@ -51,7 +51,7 @@ def train_hkt_brain():
         activation='relu',
         solver='adam',
         random_state=42,
-        verbose=False
+        verbose=True
     )
     
     ann.fit(X_train, y_train)
@@ -59,13 +59,13 @@ def train_hkt_brain():
 
 hkt_brain = train_hkt_brain()
 
-st.sidebar.header("🛠️ HKT PRO")
-tool_mode = st.sidebar.radio("Chọn chế độ:", ("Bút vẽ ✏️", "Gôm ở đây bạn ơi! 🧽"))
+st.sidebar.header("🛠️ CÔNG CỤ HKT ANN PRO")
+tool_mode = st.sidebar.radio("Chọn chế độ:", ("Bút vẽ ✏️", "Gôm tẩy 🧽"))
 
 drawing_mode = "freedraw"
 
 if tool_mode == "Bút vẽ ✏️":
-    stroke_width = st.sidebar.slider("Độ dày nét vẽ:", min_value=5, max_value=40, value=20, step=1)
+    stroke_width = st.sidebar.slider("Độ đậm nét vẽ:", min_value=5, max_value=40, value=22, step=1)
     stroke_color = "#FFFFFF" 
 else:
     stroke_width = st.sidebar.slider("Kích thước gôm tẩy:", min_value=10, max_value=60, value=35, step=1)
@@ -74,22 +74,22 @@ else:
 st.sidebar.markdown("---")
 st.sidebar.success("HKT cảm ơn mọi người đã ghé qua :3")
 
-st.markdown("✍️ **Thử viết MỘT CHỮ CÁI IN HOA (A-Z) vào giữa khung xem nào:**")
+st.markdown("✍️ **Thử viết chữ cái vào đây xem nào:**")
 
 canvas_result = st_canvas(
     fill_color="rgba(255, 255, 255, 1)",  
     stroke_width=stroke_width,
     stroke_color=stroke_color, 
     background_color="rgba(0, 0, 0, 1)", 
-    height=280,
-    width=280,
+    height=320,
+    width=320,
     drawing_mode=drawing_mode,
     update_streamlit=True,
     key="hkt_ann_pro_canvas",
 )
 
 khen_list = ["Thi luyện viết chữ đẹp đi bạn ơiii✨", "Quá đẹp! HKT chấm nét chữ này 10 điểm không có nhưng!", "Như in trong sách giáo khoa ra z, vuýp!😎"]
-che_list = ["Nét hơi nguệch ngoạc nhưng mà cũng đáng iu 😜", "Ôi viết nắn nót thêm xí đi bồ ơi!", "Chữ như mèo cào ấy bồ, làm khó cho tui quá 🦤"]
+che_list = ["Nét hơi nguệch ngoạc nhưng mà cũm đáng iu 😜", "Oi viết nắn nót thêm xí đi bồ ơi!", "Chữ như mèo cào ấy bồ, làm khó cho tui quá 🦤"]
 
 st.markdown("---")
 predict_button = st.button("🔮 ĐỂ TUI ĐOÁN! 🔮", use_container_width=True)
@@ -99,7 +99,7 @@ if predict_button:
         img = canvas_result.image_data
 
         if np.sum(img[:, :, :3]) > 0:
-            with st.spinner('HKT ANN đang lan truyền tiến (Forward Propagation) để quét ma trận...'):
+            with st.spinner('HKT AI đang quét ma trận đặc trưng...'):
 
                 img_gray = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_RGBA2GRAY)
                 _, img_thresh = cv2.threshold(img_gray, 30, 255, cv2.THRESH_BINARY)
@@ -127,10 +127,10 @@ if predict_button:
                     if confidence > 98.7: confidence = 98.7
                     
                     st.balloons()
-                    st.success(f"### HKT ĐOÁN NHA, ĐÂY LÀ CHỮ: **{letter_predicted}** (MẠNG ANN TỰ TIN {confidence:.1f}%)")
+                    st.success(f"### HKT ĐOÁN NHA, ĐÂY LÀ CHỮ: **{letter_predicted}** (TỤI TUI TỰ TIN {confidence:.1f}%)")
                     
                     if confidence > 88:
-                        st.info(f"💬 **NHẬN XÉT CHỮ:** {random.choice(khen_list)}")
+                        st.info(f"💬 **NHẬN XÈT CHỮ:** {random.choice(khen_list)}")
                     else:
                         st.warning(f"💬 **NHẬN XÉT CHỮ:** {random.choice(che_list)}")
                 else:
