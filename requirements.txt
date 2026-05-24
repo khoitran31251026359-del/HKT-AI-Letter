@@ -1,7 +1,4 @@
-streamlit
-streamlit-drawable-canvas
-tensorflow
-tensorflow-datasets
-numpy
+scikit-learn
 opencv-python-headless
-Pillow
+streamlit-drawable-canvas
+numpy
